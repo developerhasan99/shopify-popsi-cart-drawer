@@ -32,3 +32,11 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+model CartDrawerSettings {
+  id        String   @id @default(cuid())
+  shop      String   @unique
+  settings  String   // JSON string containing all settings
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}

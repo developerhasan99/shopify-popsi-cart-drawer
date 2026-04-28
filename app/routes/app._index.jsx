@@ -19,25 +19,24 @@ export default function Index() {
 
   return (
     <s-page heading="Popsi Cart Drawer">
-      <s-button slot="primary-action" href={appEmbedDeepLink} target="_blank">
-        Activate drawer
+      <s-button slot="primary-action" href="/app/settings">
+        Configure Settings
       </s-button>
 
       <s-section heading="Setup">
         <s-stack gap="base">
-          <s-banner tone="info" heading="Theme app extension ready">
-            The drawer is delivered through a Shopify theme app embed, so it can
-            be enabled and configured in the theme editor without editing theme
-            code.
+          <s-banner tone="info" heading="App-level settings available">
+            Configure your cart drawer settings from the app admin page. These
+            settings apply across all themes.
           </s-banner>
 
           <s-ordered-list>
             <s-list-item>
-              Open the theme editor and enable the Cart drawer app embed.
+              <s-link url="/app/settings">Configure app settings</s-link> for
+              design, rewards, announcements, and more.
             </s-list-item>
             <s-list-item>
-              Adjust the drawer design, rewards bar, announcement, coupon field,
-              upsells, trust badges, and text from the app embed settings.
+              Open the theme editor and enable the Cart drawer app embed.
             </s-list-item>
             <s-list-item>
               Add the Cart icon app block anywhere the theme supports app
@@ -65,13 +64,16 @@ export default function Index() {
         </s-unordered-list>
       </s-section>
 
-      <s-section slot="aside" heading="Theme editor">
+      <s-section slot="aside" heading="Quick Actions">
         <s-stack gap="base">
           <s-paragraph>
             Store: <s-text>{shop}</s-text>
           </s-paragraph>
-          <s-button href={appEmbedDeepLink} target="_blank" variant="primary">
-            Open app embeds
+          <s-button href="/app/settings" variant="primary">
+            Open Settings
+          </s-button>
+          <s-button href={appEmbedDeepLink} target="_blank">
+            Open theme editor
           </s-button>
         </s-stack>
       </s-section>
