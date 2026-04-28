@@ -86,7 +86,9 @@
   }
 
   function asText(value, fallback) {
-    return value === undefined || value === null || value === "" ? fallback : value;
+    return value === undefined || value === null || value === ""
+      ? fallback
+      : value;
   }
 
   function escapeHtml(value) {
@@ -141,6 +143,7 @@
       this.recommendations = [];
       this.recommendationsSignature = "";
       this.previousBodyOverflow = "";
+      this.settings = { ...DEFAULTS };
 
       this.handleClick = this.handleClick.bind(this);
       this.handleChange = this.handleChange.bind(this);
@@ -149,8 +152,14 @@
       this.handleOpenEvent = this.handleOpenEvent.bind(this);
     }
 
-    connectedCallback() {
-      this.settings = this.readSettings();
+    async connectedCallback() {
+      const data = this.dataset;
+      this.shopDomain = asText(data.shopDomain, "");
+      this.appUrl = asText(data.appUrl, "");
+      this.blockId = asText(data.blockId, "");
+      this.currentProductId = asText(data.currentProductId, "");
+
+      await this.fetchSettings();
       this.timerCount = Math.max(1, this.settings.timerDuration) * 60;
       this.render();
 
@@ -173,80 +182,259 @@
       if (this.isOpen) document.body.style.overflow = this.previousBodyOverflow;
     }
 
-    readSettings() {
-      const data = this.dataset;
+    async fetchSettings() {
+      if (!this.shopDomain || !this.appUrl) {
+        console.warn(
+          "Popsi Cart: Missing shop domain or app URL, using defaults",
+        );
+        return;
+      }
 
+      try {
+        const response = await fetch(
+          `https://${this.appUrl}/api/settings?shop=${this.shopDomain}`,
+        );
+        if (!response.ok) {
+          throw new Error(`Failed to fetch settings: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.settings) {
+          this.settings = this.mapApiSettings(data.settings);
+        }
+      } catch (error) {
+        console.warn(
+          "Popsi Cart: Failed to fetch settings from API, using defaults",
+          error,
+        );
+        this.settings = { ...DEFAULTS };
+      }
+    }
+
+    mapApiSettings(apiSettings) {
       return {
-        blockId: asText(data.blockId, ""),
-        currentProductId: asText(data.currentProductId, ""),
-        autoOpenCart: asBoolean(data.autoOpenCart, DEFAULTS.autoOpenCart),
-        showFloatingTrigger: asBoolean(data.showFloatingTrigger, DEFAULTS.showFloatingTrigger),
-        floatingPosition: asText(data.floatingPosition, DEFAULTS.floatingPosition),
-        inheritFonts: asBoolean(data.inheritFonts, DEFAULTS.inheritFonts),
-        cartTitle: asText(data.cartTitle, DEFAULTS.cartTitle),
-        showCartCount: asBoolean(data.showCartCount, DEFAULTS.showCartCount),
-        cartIconType: asText(data.cartIconType, DEFAULTS.cartIconType),
-        cartIconColor: asText(data.cartIconColor, DEFAULTS.cartIconColor),
-        cartIconSize: asNumber(data.cartIconSize, DEFAULTS.cartIconSize),
-        cartBubbleBg: asText(data.cartBubbleBg, DEFAULTS.cartBubbleBg),
-        cartBubbleText: asText(data.cartBubbleText, DEFAULTS.cartBubbleText),
-        bgColor: asText(data.bgColor, DEFAULTS.bgColor),
-        textColor: asText(data.textColor, DEFAULTS.textColor),
-        accentColor: asText(data.accentColor, DEFAULTS.accentColor),
-        btnColor: asText(data.btnColor, DEFAULTS.btnColor),
-        btnTextColor: asText(data.btnTextColor, DEFAULTS.btnTextColor),
-        btnHoverColor: asText(data.btnHoverColor, DEFAULTS.btnHoverColor),
-        btnHoverTextColor: asText(data.btnHoverTextColor, DEFAULTS.btnHoverTextColor),
-        btnRadius: asNumber(data.btnRadius, DEFAULTS.btnRadius),
-        showAnnouncement: asBoolean(data.showAnnouncement, DEFAULTS.showAnnouncement),
-        announcementText: asText(data.announcementText, DEFAULTS.announcementText),
-        announcementBg: asText(data.announcementBg, DEFAULTS.announcementBg),
-        announcementTextColor: asText(data.announcementTextColor, DEFAULTS.announcementTextColor),
-        announcementSize: asText(data.announcementSize, DEFAULTS.announcementSize),
-        timerDuration: asNumber(data.timerDuration, DEFAULTS.timerDuration),
-        enableRewardsBar: asBoolean(data.enableRewardsBar, DEFAULTS.enableRewardsBar),
-        showRewardsOnEmpty: asBoolean(data.showRewardsOnEmpty, DEFAULTS.showRewardsOnEmpty),
-        rewardType: asText(data.rewardType, DEFAULTS.rewardType),
-        rewardAwayText: asText(data.rewardAwayText, DEFAULTS.rewardAwayText),
-        rewardCompletedText: asText(data.rewardCompletedText, DEFAULTS.rewardCompletedText),
-        rewardGoalOneThreshold: asNumber(data.rewardGoalOneThreshold, DEFAULTS.rewardGoalOneThreshold),
-        rewardGoalOneLabel: asText(data.rewardGoalOneLabel, DEFAULTS.rewardGoalOneLabel),
-        rewardGoalOneIcon: asText(data.rewardGoalOneIcon, DEFAULTS.rewardGoalOneIcon),
-        rewardGoalTwoThreshold: asNumber(data.rewardGoalTwoThreshold, DEFAULTS.rewardGoalTwoThreshold),
-        rewardGoalTwoLabel: asText(data.rewardGoalTwoLabel, DEFAULTS.rewardGoalTwoLabel),
-        rewardGoalTwoIcon: asText(data.rewardGoalTwoIcon, DEFAULTS.rewardGoalTwoIcon),
-        rewardsBarBg: asText(data.rewardsBarBg, DEFAULTS.rewardsBarBg),
-        rewardsBarFg: asText(data.rewardsBarFg, DEFAULTS.rewardsBarFg),
-        rewardsCompleteIconColor: asText(data.rewardsCompleteIconColor, DEFAULTS.rewardsCompleteIconColor),
-        rewardsIncompleteIconColor: asText(data.rewardsIncompleteIconColor, DEFAULTS.rewardsIncompleteIconColor),
-        showItemImages: asBoolean(data.showItemImages, DEFAULTS.showItemImages),
-        showStrikethrough: asBoolean(data.showStrikethrough, DEFAULTS.showStrikethrough),
-        showSavings: asBoolean(data.showSavings, DEFAULTS.showSavings),
-        savingsTextColor: asText(data.savingsTextColor, DEFAULTS.savingsTextColor),
-        savingsPrefix: asText(data.savingsPrefix, DEFAULTS.savingsPrefix),
-        enableCoupon: asBoolean(data.enableCoupon, DEFAULTS.enableCoupon),
-        enableSubtotalLine: asBoolean(data.enableSubtotalLine, DEFAULTS.enableSubtotalLine),
-        enableTotalLine: asBoolean(data.enableTotalLine, DEFAULTS.enableTotalLine),
-        showShippingNotice: asBoolean(data.showShippingNotice, DEFAULTS.showShippingNotice),
-        showSubtotalOnCheckout: asBoolean(data.showSubtotalOnCheckout, DEFAULTS.showSubtotalOnCheckout),
-        showUpsells: asBoolean(data.showUpsells, DEFAULTS.showUpsells),
-        showUpsellsOnEmpty: asBoolean(data.showUpsellsOnEmpty, DEFAULTS.showUpsellsOnEmpty),
-        upsellTitle: asText(data.upsellTitle, DEFAULTS.upsellTitle),
-        upsellMax: Math.min(10, Math.max(1, asNumber(data.upsellMax, DEFAULTS.upsellMax))),
-        upsellIntent: asText(data.upsellIntent, DEFAULTS.upsellIntent),
-        upsellBtnText: asText(data.upsellBtnText, DEFAULTS.upsellBtnText),
-        showTrustBadges: asBoolean(data.showTrustBadges, DEFAULTS.showTrustBadges),
-        trustBadgeUrl: asText(data.trustBadgeUrl, DEFAULTS.trustBadgeUrl),
-        transCheckoutBtn: asText(data.transCheckoutBtn, DEFAULTS.transCheckoutBtn),
-        transContinueShopping: asText(data.transContinueShopping, DEFAULTS.transContinueShopping),
-        transEmptyCart: asText(data.transEmptyCart, DEFAULTS.transEmptyCart),
-        transSubtotal: asText(data.transSubtotal, DEFAULTS.transSubtotal),
-        transTotal: asText(data.transTotal, DEFAULTS.transTotal),
-        transDiscounts: asText(data.transDiscounts, DEFAULTS.transDiscounts),
-        transCouponAccordionTitle: asText(data.transCouponAccordionTitle, DEFAULTS.transCouponAccordionTitle),
-        transCouponPlaceholder: asText(data.transCouponPlaceholder, DEFAULTS.transCouponPlaceholder),
-        transCouponApplyBtn: asText(data.transCouponApplyBtn, DEFAULTS.transCouponApplyBtn),
-        shippingNoticeText: asText(data.shippingNoticeText, DEFAULTS.shippingNoticeText),
+        blockId: this.blockId,
+        currentProductId: this.currentProductId,
+        autoOpenCart: asBoolean(
+          apiSettings.auto_open_cart,
+          DEFAULTS.autoOpenCart,
+        ),
+        showFloatingTrigger: asBoolean(
+          apiSettings.show_floating_trigger ?? true,
+          DEFAULTS.showFloatingTrigger,
+        ),
+        floatingPosition: asText(
+          apiSettings.floating_position,
+          DEFAULTS.floatingPosition,
+        ),
+        inheritFonts: asBoolean(
+          apiSettings.inherit_fonts,
+          DEFAULTS.inheritFonts,
+        ),
+        cartTitle: asText(apiSettings.cart_title, DEFAULTS.cartTitle),
+        showCartCount: asBoolean(
+          apiSettings.show_cart_count,
+          DEFAULTS.showCartCount,
+        ),
+        cartIconType: asText(apiSettings.cart_icon_type, DEFAULTS.cartIconType),
+        cartIconColor: asText(
+          apiSettings.cart_icon_color,
+          DEFAULTS.cartIconColor,
+        ),
+        cartIconSize: asNumber(
+          apiSettings.cart_icon_size,
+          DEFAULTS.cartIconSize,
+        ),
+        cartBubbleBg: asText(apiSettings.cart_bubble_bg, DEFAULTS.cartBubbleBg),
+        cartBubbleText: asText(
+          apiSettings.cart_bubble_text,
+          DEFAULTS.cartBubbleText,
+        ),
+        bgColor: asText(apiSettings.bg_color, DEFAULTS.bgColor),
+        textColor: asText(apiSettings.text_color, DEFAULTS.textColor),
+        accentColor: asText(apiSettings.accent_color, DEFAULTS.accentColor),
+        btnColor: asText(apiSettings.btn_color, DEFAULTS.btnColor),
+        btnTextColor: asText(apiSettings.btn_text_color, DEFAULTS.btnTextColor),
+        btnHoverColor: asText(
+          apiSettings.btn_hover_color,
+          DEFAULTS.btnHoverColor,
+        ),
+        btnHoverTextColor: asText(
+          apiSettings.btn_hover_text_color,
+          DEFAULTS.btnHoverTextColor,
+        ),
+        btnRadius: asNumber(apiSettings.btn_radius, DEFAULTS.btnRadius),
+        showAnnouncement: asBoolean(
+          apiSettings.show_announcement,
+          DEFAULTS.showAnnouncement,
+        ),
+        announcementText: asText(
+          apiSettings.announcement_text,
+          DEFAULTS.announcementText,
+        ),
+        announcementBg: asText(
+          apiSettings.announcement_bg,
+          DEFAULTS.announcementBg,
+        ),
+        announcementTextColor: asText(
+          apiSettings.announcement_text_color,
+          DEFAULTS.announcementTextColor,
+        ),
+        announcementSize: asText(
+          apiSettings.announcement_bar_size,
+          DEFAULTS.announcementSize,
+        ),
+        timerDuration: asNumber(
+          apiSettings.timer_duration,
+          DEFAULTS.timerDuration,
+        ),
+        enableRewardsBar: asBoolean(
+          apiSettings.enable_rewards_bar,
+          DEFAULTS.enableRewardsBar,
+        ),
+        showRewardsOnEmpty: asBoolean(
+          apiSettings.show_rewards_on_empty,
+          DEFAULTS.showRewardsOnEmpty,
+        ),
+        rewardType: asText(apiSettings.reward_type, DEFAULTS.rewardType),
+        rewardAwayText: asText(
+          apiSettings.reward_away_text,
+          DEFAULTS.rewardAwayText,
+        ),
+        rewardCompletedText: asText(
+          apiSettings.reward_completed_text,
+          DEFAULTS.rewardCompletedText,
+        ),
+        rewardGoalOneThreshold: asNumber(
+          apiSettings.reward_goal_one_threshold,
+          DEFAULTS.rewardGoalOneThreshold,
+        ),
+        rewardGoalOneLabel: asText(
+          apiSettings.reward_goal_one_label,
+          DEFAULTS.rewardGoalOneLabel,
+        ),
+        rewardGoalOneIcon: asText(
+          apiSettings.reward_goal_one_icon,
+          DEFAULTS.rewardGoalOneIcon,
+        ),
+        rewardGoalTwoThreshold: asNumber(
+          apiSettings.reward_goal_two_threshold,
+          DEFAULTS.rewardGoalTwoThreshold,
+        ),
+        rewardGoalTwoLabel: asText(
+          apiSettings.reward_goal_two_label,
+          DEFAULTS.rewardGoalTwoLabel,
+        ),
+        rewardGoalTwoIcon: asText(
+          apiSettings.reward_goal_two_icon,
+          DEFAULTS.rewardGoalTwoIcon,
+        ),
+        rewardsBarBg: asText(apiSettings.rewards_bar_bg, DEFAULTS.rewardsBarBg),
+        rewardsBarFg: asText(apiSettings.rewards_bar_fg, DEFAULTS.rewardsBarFg),
+        rewardsCompleteIconColor: asText(
+          apiSettings.rewards_complete_icon_color,
+          DEFAULTS.rewardsCompleteIconColor,
+        ),
+        rewardsIncompleteIconColor: asText(
+          apiSettings.rewards_incomplete_icon_color,
+          DEFAULTS.rewardsIncompleteIconColor,
+        ),
+        showItemImages: asBoolean(
+          apiSettings.show_item_images,
+          DEFAULTS.showItemImages,
+        ),
+        showStrikethrough: asBoolean(
+          apiSettings.show_strikethrough,
+          DEFAULTS.showStrikethrough,
+        ),
+        showSavings: asBoolean(apiSettings.show_savings, DEFAULTS.showSavings),
+        savingsTextColor: asText(
+          apiSettings.savings_text_color,
+          DEFAULTS.savingsTextColor,
+        ),
+        savingsPrefix: asText(
+          apiSettings.trans_savings_prefix,
+          DEFAULTS.savingsPrefix,
+        ),
+        enableCoupon: asBoolean(
+          apiSettings.enable_coupon,
+          DEFAULTS.enableCoupon,
+        ),
+        enableSubtotalLine: asBoolean(
+          apiSettings.enable_subtotal_line,
+          DEFAULTS.enableSubtotalLine,
+        ),
+        enableTotalLine: asBoolean(
+          apiSettings.enable_total_line,
+          DEFAULTS.enableTotalLine,
+        ),
+        showShippingNotice: asBoolean(
+          apiSettings.show_shipping_notice,
+          DEFAULTS.showShippingNotice,
+        ),
+        showSubtotalOnCheckout: asBoolean(
+          apiSettings.show_subtotal_on_checkout,
+          DEFAULTS.showSubtotalOnCheckout,
+        ),
+        showUpsells: asBoolean(apiSettings.show_upsells, DEFAULTS.showUpsells),
+        showUpsellsOnEmpty: asBoolean(
+          apiSettings.show_upsells_on_empty,
+          DEFAULTS.showUpsellsOnEmpty,
+        ),
+        upsellTitle: asText(apiSettings.upsell_title, DEFAULTS.upsellTitle),
+        upsellMax: Math.min(
+          10,
+          Math.max(1, asNumber(apiSettings.upsell_max, DEFAULTS.upsellMax)),
+        ),
+        upsellIntent: asText(apiSettings.upsell_intent, DEFAULTS.upsellIntent),
+        upsellBtnText: asText(
+          apiSettings.upsell_btn_text,
+          DEFAULTS.upsellBtnText,
+        ),
+        showTrustBadges: asBoolean(
+          apiSettings.show_trust_badges,
+          DEFAULTS.showTrustBadges,
+        ),
+        trustBadgeUrl: asText(
+          apiSettings.trust_badge_image,
+          DEFAULTS.trustBadgeUrl,
+        ),
+        transCheckoutBtn: asText(
+          apiSettings.trans_checkout_btn,
+          DEFAULTS.transCheckoutBtn,
+        ),
+        transContinueShopping: asText(
+          apiSettings.trans_continue_shopping,
+          DEFAULTS.transContinueShopping,
+        ),
+        transEmptyCart: asText(
+          apiSettings.trans_empty_cart,
+          DEFAULTS.transEmptyCart,
+        ),
+        transSubtotal: asText(
+          apiSettings.trans_subtotal,
+          DEFAULTS.transSubtotal,
+        ),
+        transTotal: asText(apiSettings.trans_total, DEFAULTS.transTotal),
+        transDiscounts: asText(
+          apiSettings.trans_discounts,
+          DEFAULTS.transDiscounts,
+        ),
+        transCouponAccordionTitle: asText(
+          apiSettings.trans_coupon_accordion_title,
+          DEFAULTS.transCouponAccordionTitle,
+        ),
+        transCouponPlaceholder: asText(
+          apiSettings.trans_coupon_placeholder,
+          DEFAULTS.transCouponPlaceholder,
+        ),
+        transCouponApplyBtn: asText(
+          apiSettings.trans_coupon_apply_btn,
+          DEFAULTS.transCouponApplyBtn,
+        ),
+        shippingNoticeText: asText(
+          apiSettings.shipping_notice_text,
+          DEFAULTS.shippingNoticeText,
+        ),
       };
     }
 
@@ -364,7 +552,10 @@
       } else if (action === "remove-item") {
         await this.updateItem(control.dataset.key, 0);
       } else if (action === "change-quantity") {
-        await this.updateItem(control.dataset.key, Number(control.dataset.quantity));
+        await this.updateItem(
+          control.dataset.key,
+          Number(control.dataset.quantity),
+        );
       } else if (action === "toggle-coupon") {
         this.couponOpen = !this.couponOpen;
         this.render();
@@ -397,7 +588,10 @@
 
       if (event.key !== "Enter") return;
       const target = event.target;
-      if (target instanceof HTMLInputElement && target.classList.contains("bc-coupon-input")) {
+      if (
+        target instanceof HTMLInputElement &&
+        target.classList.contains("bc-coupon-input")
+      ) {
         event.preventDefault();
         this.applyCoupon(target.value);
       }
@@ -426,7 +620,11 @@
 
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
-          throw new Error(payload.description || payload.message || "Unable to add this product.");
+          throw new Error(
+            payload.description ||
+              payload.message ||
+              "Unable to add this product.",
+          );
         }
 
         await this.refreshCart();
@@ -481,7 +679,9 @@
 
       this.setLoading(true);
       try {
-        const remainingCodes = this.discountCodes().filter((existingCode) => existingCode !== code);
+        const remainingCodes = this.discountCodes().filter(
+          (existingCode) => existingCode !== code,
+        );
         const cart = await this.postJson("cart/update.js", {
           discount: remainingCodes.join(","),
         });
@@ -562,8 +762,13 @@
     }
 
     formatMoney(cents) {
-      const currency = this.cart?.currency || window.Shopify?.currency?.active || "USD";
-      const locale = window.Shopify?.locale || document.documentElement.lang || navigator.language || "en";
+      const currency =
+        this.cart?.currency || window.Shopify?.currency?.active || "USD";
+      const locale =
+        window.Shopify?.locale ||
+        document.documentElement.lang ||
+        navigator.language ||
+        "en";
       const amount = Number(cents || 0) / 100;
 
       try {
@@ -616,7 +821,9 @@
         return;
       }
 
-      const cartProductIds = new Set((this.cart.items || []).map((item) => Number(item.product_id)));
+      const cartProductIds = new Set(
+        (this.cart.items || []).map((item) => Number(item.product_id)),
+      );
       const signature = [
         productId,
         Array.from(cartProductIds).sort().join(":"),
@@ -633,7 +840,9 @@
           limit: String(this.settings.upsellMax),
           intent: this.settings.upsellIntent,
         });
-        const response = await this.fetchJson(`recommendations/products.json?${params.toString()}`);
+        const response = await this.fetchJson(
+          `recommendations/products.json?${params.toString()}`,
+        );
         this.recommendations = (response.products || [])
           .filter((product) => !cartProductIds.has(Number(product.id)))
           .slice(0, this.settings.upsellMax);
@@ -749,7 +958,11 @@
     renderRewards(cart) {
       const settings = this.settings;
       const isEmpty = Number(cart.item_count || 0) === 0;
-      if (!settings.enableRewardsBar || (isEmpty && !settings.showRewardsOnEmpty)) return "";
+      if (
+        !settings.enableRewardsBar ||
+        (isEmpty && !settings.showRewardsOnEmpty)
+      )
+        return "";
 
       const goals = [
         {
@@ -769,13 +982,18 @@
       if (!goals.length) return "";
 
       const currentValue =
-        settings.rewardType === "quantity" ? Number(cart.item_count || 0) : Number(cart.items_subtotal_price || 0) / 100;
+        settings.rewardType === "quantity"
+          ? Number(cart.item_count || 0)
+          : Number(cart.items_subtotal_price || 0) / 100;
       const maxThreshold = goals[goals.length - 1].threshold;
       const progress = Math.min((currentValue / maxThreshold) * 100, 100);
       const nextGoal = goals.find((goal) => currentValue < goal.threshold);
 
       const progressText = nextGoal
-        ? this.renderRewardAwayText(nextGoal, Math.max(nextGoal.threshold - currentValue, 0))
+        ? this.renderRewardAwayText(
+            nextGoal,
+            Math.max(nextGoal.threshold - currentValue, 0),
+          )
         : escapeHtml(settings.rewardCompletedText);
 
       return `
@@ -788,7 +1006,10 @@
                 ${goals
                   .map((goal) => {
                     const reached = currentValue >= goal.threshold;
-                    const position = Math.min((goal.threshold / maxThreshold) * 100, 100);
+                    const position = Math.min(
+                      (goal.threshold / maxThreshold) * 100,
+                      100,
+                    );
                     return `
                       <div class="bc-checkpoint ${reached ? "is-reached" : ""}" style="left: ${position}%; background-color: ${
                         reached ? settings.rewardsBarFg : settings.rewardsBarBg
@@ -808,7 +1029,9 @@
 
     renderRewardAwayText(goal, difference) {
       const amount =
-        this.settings.rewardType === "quantity" ? String(Math.ceil(difference)) : this.formatMoney(Math.ceil(difference * 100));
+        this.settings.rewardType === "quantity"
+          ? String(Math.ceil(difference))
+          : this.formatMoney(Math.ceil(difference * 100));
 
       return escapeHtml(this.settings.rewardAwayText)
         .replace("{amount}", `<strong>${escapeHtml(amount)}</strong>`)
@@ -828,9 +1051,14 @@
       const title = item.product_title || item.title || "Product";
       const productUrl = item.url || "#";
       const imageUrl = normalizeImageUrl(item.image);
-      const hasSale = Number(item.original_price || 0) > Number(item.final_price || item.price || 0);
+      const hasSale =
+        Number(item.original_price || 0) >
+        Number(item.final_price || item.price || 0);
       const itemDiscounts = this.discountCodes();
-      const savings = (Number(item.original_price || 0) - Number(item.final_price || item.price || 0)) * Number(item.quantity || 1);
+      const savings =
+        (Number(item.original_price || 0) -
+          Number(item.final_price || item.price || 0)) *
+        Number(item.quantity || 1);
 
       return `
         <div class="bc-item">
@@ -896,19 +1124,28 @@
 
     renderItemMeta(item) {
       const meta = [];
-      if (item.variant_title && item.variant_title !== "Default Title") meta.push(item.variant_title);
+      if (item.variant_title && item.variant_title !== "Default Title")
+        meta.push(item.variant_title);
       if (Array.isArray(item.variant_options)) {
         item.variant_options
-          .filter((option) => option && option !== "Default Title" && option !== item.variant_title)
+          .filter(
+            (option) =>
+              option &&
+              option !== "Default Title" &&
+              option !== item.variant_title,
+          )
           .forEach((option) => meta.push(option));
       }
 
       Object.entries(item.properties || {}).forEach(([key, value]) => {
-        if (!key || key.startsWith("_") || value === null || value === "") return;
+        if (!key || key.startsWith("_") || value === null || value === "")
+          return;
         meta.push(`${humanizePropertyName(key)}: ${value}`);
       });
 
-      return meta.length ? `<div class="bc-item-meta">${meta.map(escapeHtml).join(", ")}</div>` : "";
+      return meta.length
+        ? `<div class="bc-item-meta">${meta.map(escapeHtml).join(", ")}</div>`
+        : "";
     }
 
     renderEmptyCart() {
@@ -927,7 +1164,12 @@
 
     renderUpsells(isEmpty) {
       const settings = this.settings;
-      if (!settings.showUpsells || (isEmpty && !settings.showUpsellsOnEmpty) || !this.recommendations.length) return "";
+      if (
+        !settings.showUpsells ||
+        (isEmpty && !settings.showUpsellsOnEmpty) ||
+        !this.recommendations.length
+      )
+        return "";
 
       return `
         <div class="bc-upsells">
@@ -943,10 +1185,18 @@
       const variants = product.variants || [];
       const availableVariants = variants.filter((variant) => variant.available);
       const selectedVariant = availableVariants[0] || variants[0] || null;
-      const productUrl = product.url || (product.handle ? this.route(`products/${product.handle}`) : "#");
-      const imageUrl = normalizeImageUrl(product.featured_image || product.images?.[0] || selectedVariant?.featured_image?.src);
-      const price = selectedVariant?.price ?? product.price_min ?? product.price;
-      const compareAtPrice = selectedVariant?.compare_at_price ?? product.compare_at_price;
+      const productUrl =
+        product.url ||
+        (product.handle ? this.route(`products/${product.handle}`) : "#");
+      const imageUrl = normalizeImageUrl(
+        product.featured_image ||
+          product.images?.[0] ||
+          selectedVariant?.featured_image?.src,
+      );
+      const price =
+        selectedVariant?.price ?? product.price_min ?? product.price;
+      const compareAtPrice =
+        selectedVariant?.compare_at_price ?? product.compare_at_price;
       const hasCompareAt = Number(compareAtPrice || 0) > Number(price || 0);
 
       return `
@@ -971,9 +1221,18 @@
                       <select class="bc-upsell-select" aria-label="Choose ${escapeHtml(product.title)} variant">
                         ${variants
                           .map((variant) => {
-                            const label = variant.public_title || variant.title || "Default";
-                            const disabled = variant.available ? "" : "disabled";
-                            const selected = selectedVariant && variant.id === selectedVariant.id ? "selected" : "";
+                            const label =
+                              variant.public_title ||
+                              variant.title ||
+                              "Default";
+                            const disabled = variant.available
+                              ? ""
+                              : "disabled";
+                            const selected =
+                              selectedVariant &&
+                              variant.id === selectedVariant.id
+                                ? "selected"
+                                : "";
                             return `<option value="${variant.id}" data-price="${this.formatMoney(variant.price)}" ${selected} ${disabled}>${escapeHtml(label)}</option>`;
                           })
                           .join("")}
