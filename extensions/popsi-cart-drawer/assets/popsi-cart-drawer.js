@@ -183,16 +183,14 @@
     }
 
     async fetchSettings() {
-      if (!this.shopDomain || !this.appUrl) {
-        console.warn(
-          "Popsi Cart: Missing shop domain or app URL, using defaults",
-        );
+      if (!this.shopDomain) {
+        console.warn("Popsi Cart: Missing shop domain, using defaults");
         return;
       }
 
       try {
         const response = await fetch(
-          `https://${this.appUrl}/api/settings?shop=${this.shopDomain}`,
+          `/apps/cart-drawer-settings?shop=${this.shopDomain}`,
         );
         if (!response.ok) {
           throw new Error(`Failed to fetch settings: ${response.status}`);

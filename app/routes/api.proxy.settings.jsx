@@ -1,12 +1,12 @@
-import { json } from "@remix-run/node";
+import { data } from "react-router";
 import { prisma } from "../db.server";
 
 export const loader = async ({ request }) => {
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop");
-  
+
   if (!shop) {
-    return json({ error: "Shop parameter required" }, { status: 400 });
+    return data({ error: "Shop parameter required" }, { status: 400 });
   }
 
   try {
@@ -15,13 +15,13 @@ export const loader = async ({ request }) => {
     });
 
     if (!settingsRecord) {
-      return json({ settings: null });
+      return data({ settings: null });
     }
 
     const settings = JSON.parse(settingsRecord.settings);
-    return json({ settings });
+    return data({ settings });
   } catch (error) {
     console.error("Failed to fetch settings:", error);
-    return json({ error: "Failed to fetch settings" }, { status: 500 });
+    return data({ error: "Failed to fetch settings" }, { status: 500 });
   }
 };
