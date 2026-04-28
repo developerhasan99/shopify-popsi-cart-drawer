@@ -1,4 +1,4 @@
-import { json } from "react-router";
+import { data } from "react-router";
 import {
   useLoaderData,
   useActionData,
@@ -137,7 +137,7 @@ export const loader = async ({ request }) => {
     }
   }
 
-  return json({ settings, shop: session.shop });
+  return data({ settings, shop: session.shop });
 };
 
 export const action = async ({ request }) => {
@@ -146,7 +146,7 @@ export const action = async ({ request }) => {
   const settingsJson = formData.get("settings");
 
   if (!settingsJson) {
-    return json({ error: "Settings are required" }, { status: 400 });
+    return data({ error: "Settings are required" }, { status: 400 });
   }
 
   try {
@@ -156,10 +156,10 @@ export const action = async ({ request }) => {
       create: { shop: session.shop, settings: settingsJson },
     });
 
-    return json({ success: true });
+    return data({ success: true });
   } catch (error) {
     console.error("Failed to save settings:", error);
-    return json({ error: "Failed to save settings" }, { status: 500 });
+    return data({ error: "Failed to save settings" }, { status: 500 });
   }
 };
 
