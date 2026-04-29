@@ -214,6 +214,7 @@ popsi-cart-trigger *::after {
 }
 
 .bc-progress-fill {
+  display: block !important;
   position: absolute;
   top: 0;
   left: 0;

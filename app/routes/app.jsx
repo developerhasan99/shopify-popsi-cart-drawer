@@ -16,7 +16,9 @@ export default function App() {
   return (
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
-        <s-link href="/app">Setup</s-link>
+        <s-link href="/app/settings">Settings</s-link>
+        <s-link href="/app/sticky-cart">Sticky Cart</s-link>
+        <s-link href="/app/help-support">Help & Support</s-link>
       </s-app-nav>
       <Outlet />
     </AppProvider>
