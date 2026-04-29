@@ -35,8 +35,11 @@ model Session {
 
 model CartDrawerSettings {
   id        String   @id @default(cuid())
-  shop      String   @unique
+  shop      String
+  name      String   // Name to identify this cart configuration
   settings  String   // JSON string containing all settings
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
+
+  @@unique([shop, name])
 }

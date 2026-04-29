@@ -14,7 +14,6 @@ const DEFAULT_SETTINGS = {
   // Placement
   enable_cart_drawer: true,
   auto_open_cart: true,
-  menu_placement: "none",
 
   // Design
   inherit_fonts: true,
@@ -119,11 +118,13 @@ const DEFAULT_SETTINGS = {
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const configName = url.searchParams.get("config") || "default";
 
   let settings = DEFAULT_SETTINGS;
 
-  const existingSettings = await prisma.cartDrawerSettings.findUnique({
-    where: { shop: session.shop },
+  const existingSettings = await prisma.cartDrawerSettings.findFirst({
+    where: { shop: session.shop, name: configName },
   });
 
   if (existingSettings) {
@@ -137,24 +138,58 @@ export const loader = async ({ request }) => {
     }
   }
 
-  return data({ settings, shop: session.shop });
+  // Get all configurations for this shop
+  const allConfigs = await prisma.cartDrawerSettings.findMany({
+    where: { shop: session.shop },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return data({ settings, shop: session.shop, configName, allConfigs });
 };
 
 export const action = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const formData = await request.formData();
   const settingsJson = formData.get("settings");
+  const configName = formData.get("configName") || "default";
+  const actionType = formData.get("actionType");
+
+  if (actionType === "delete") {
+    try {
+      const config = await prisma.cartDrawerSettings.findFirst({
+        where: { shop: session.shop, name: configName },
+      });
+      if (config) {
+        await prisma.cartDrawerSettings.delete({
+          where: { id: config.id },
+        });
+      }
+      return data({ success: true, deleted: true });
+    } catch (error) {
+      console.error("Failed to delete settings:", error);
+      return data({ error: "Failed to delete settings" }, { status: 500 });
+    }
+  }
 
   if (!settingsJson) {
     return data({ error: "Settings are required" }, { status: 400 });
   }
 
   try {
-    await prisma.cartDrawerSettings.upsert({
-      where: { shop: session.shop },
-      update: { settings: settingsJson },
-      create: { shop: session.shop, settings: settingsJson },
+    const existing = await prisma.cartDrawerSettings.findFirst({
+      where: { shop: session.shop, name: configName },
     });
+
+    if (existing) {
+      await prisma.cartDrawerSettings.update({
+        where: { id: existing.id },
+        data: { settings: settingsJson },
+      });
+    } else {
+      await prisma.cartDrawerSettings.create({
+        data: { shop: session.shop, name: configName, settings: settingsJson },
+      });
+    }
 
     return data({ success: true });
   } catch (error) {
@@ -164,13 +199,20 @@ export const action = async ({ request }) => {
 };
 
 export default function Settings() {
-  const { settings: initialSettings, shop } = useLoaderData();
+  const {
+    settings: initialSettings,
+    shop,
+    configName,
+    allConfigs,
+  } = useLoaderData();
   const actionData = useActionData();
   const navigation = useNavigation();
   const isSaving = navigation.state === "submitting";
   const [activeTab, setActiveTab] = useState("placement");
   const [settings, setSettings] = useState(initialSettings);
   const [isDirty, setIsDirty] = useState(false);
+  const [newConfigName, setNewConfigName] = useState("");
+  const [showNewConfigInput, setShowNewConfigInput] = useState(false);
 
   const updateSetting = (key, value) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -221,9 +263,9 @@ export default function Settings() {
 
       <s-section heading="Configure your cart drawer">
         <s-stack gap="base">
-          <s-banner tone="info" heading="App-level settings">
-            These settings apply to your entire store and will be used by the
-            cart drawer across all themes.
+          <s-banner tone="info" heading="Multiple Cart Configurations">
+            You can create and manage multiple cart drawer configurations for
+            your store.
           </s-banner>
 
           <s-paragraph>
@@ -238,12 +280,136 @@ export default function Settings() {
             <s-banner tone="critical" heading={actionData.error} />
           )}
 
+          {/* Configuration Selector */}
+          <div style={{ marginBottom: "24px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                marginBottom: "12px",
+              }}
+            >
+              <label
+                htmlFor="config-select"
+                style={{ fontSize: "14px", fontWeight: "500" }}
+              >
+                Configuration:
+              </label>
+              <select
+                id="config-select"
+                value={configName}
+                onChange={(e) => {
+                  window.location.href = `?config=${e.target.value}`;
+                }}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #e5e5e5",
+                  fontSize: "14px",
+                  minWidth: "200px",
+                }}
+              >
+                {allConfigs.map((config) => (
+                  <option key={config.id} value={config.name}>
+                    {config.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowNewConfigInput(!showNewConfigInput)}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  border: "1px solid #e5e5e5",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  backgroundColor: "#fff",
+                }}
+              >
+                {showNewConfigInput ? "Cancel" : "+ New Configuration"}
+              </button>
+              {configName !== "default" && (
+                <Form method="post" style={{ display: "inline" }}>
+                  <input type="hidden" name="configName" value={configName} />
+                  <input type="hidden" name="actionType" value="delete" />
+                  <button
+                    type="submit"
+                    onClick={(e) => {
+                      if (
+                        !confirm(
+                          "Are you sure you want to delete this configuration?",
+                        )
+                      ) {
+                        e.preventDefault();
+                      }
+                    }}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: "6px",
+                      border: "1px solid #fecaca",
+                      fontSize: "14px",
+                      cursor: "pointer",
+                      backgroundColor: "#fef2f2",
+                      color: "#991b1b",
+                    }}
+                  >
+                    Delete
+                  </button>
+                </Form>
+              )}
+            </div>
+
+            {showNewConfigInput && (
+              <Form
+                method="post"
+                style={{ display: "flex", gap: "8px", alignItems: "center" }}
+              >
+                <input
+                  type="text"
+                  name="newConfigName"
+                  value={newConfigName}
+                  onChange={(e) => setNewConfigName(e.target.value)}
+                  placeholder="Enter configuration name"
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e5e5e5",
+                    fontSize: "14px",
+                    flex: 1,
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (newConfigName.trim()) {
+                      window.location.href = `?config=${encodeURIComponent(newConfigName.trim())}`;
+                    }
+                  }}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    border: "none",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    backgroundColor: "#000",
+                    color: "#fff",
+                  }}
+                >
+                  Create
+                </button>
+              </Form>
+            )}
+          </div>
+
           <Form method="post" id="settings-form">
             <input
               type="hidden"
               name="settings"
               value={JSON.stringify(settings)}
             />
+            <input type="hidden" name="configName" value={configName} />
           </Form>
 
           <div
@@ -419,26 +585,6 @@ function PlacementTab({ settings, updateSetting }) {
             Auto open on Add to cart
           </span>
         </label>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <label style={{ fontSize: "14px", fontWeight: "500" }}>
-            Show Cart icon on menu
-          </label>
-          <select
-            value={settings.menu_placement}
-            onChange={(e) => updateSetting("menu_placement", e.target.value)}
-            style={{
-              padding: "8px 12px",
-              borderRadius: "6px",
-              border: "1px solid #e5e5e5",
-              fontSize: "14px",
-            }}
-          >
-            <option value="none">None</option>
-            <option value="header">Header</option>
-            <option value="footer">Footer</option>
-          </select>
-        </div>
       </div>
     </div>
   );
