@@ -170,6 +170,8 @@
       window.addEventListener(OPEN_CART_EVENT, this.handleOpenEvent);
 
       this.refreshCart();
+
+      this.initCartInterceptor();
     }
 
     disconnectedCallback() {
@@ -434,6 +436,74 @@
           DEFAULTS.shippingNoticeText,
         ),
       };
+    }
+
+    initCartInterceptor() {
+      document.body.classList.add("popsi-cart-intercepting");
+
+      const cartSelectors = [
+        'a[href*="/cart"]',
+        "button[data-cart-toggle]",
+        ".cart-icon",
+        ".cart-link",
+        ".mini-cart-trigger",
+        "#cart-icon-bubble",
+        '[aria-label="Cart"]',
+        ".header__cart",
+        ".site-header-cart",
+        ".cart-drawer-trigger",
+        "[data-cart-drawer-toggle]",
+      ];
+
+      const handleCartClick = (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.dispatchEvent(new CustomEvent(OPEN_CART_EVENT));
+      };
+
+      const attachInterceptors = () => {
+        const allSelectors = cartSelectors.join(",");
+        const elements = document.querySelectorAll(allSelectors);
+
+        elements.forEach((element) => {
+          if (element.hasAttribute("data-popsi-intercepted")) {
+            return;
+          }
+
+          element.setAttribute("data-popsi-intercepted", "true");
+          element.addEventListener("click", handleCartClick, {
+            capture: true,
+            passive: false,
+          });
+        });
+      };
+
+      attachInterceptors();
+
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === "childList") {
+            mutation.addedNodes.forEach((node) => {
+              if (node.nodeType === 1) {
+                const allSelectors = cartSelectors.join(",");
+                if (node.matches && node.matches(allSelectors)) {
+                  attachInterceptors();
+                }
+                node.querySelectorAll?.(allSelectors)?.forEach(() => {
+                  attachInterceptors();
+                });
+              }
+            });
+          }
+        });
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+
+      this.cartInterceptorObserver = observer;
     }
 
     route(path) {

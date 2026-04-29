@@ -3,6 +3,19 @@ popsi-cart-trigger {
   box-sizing: border-box;
 }
 
+/* Hide theme cart drawers when interception is enabled */
+.popsi-cart-intercepting .cart-drawer,
+.popsi-cart-intercepting .drawer,
+.popsi-cart-intercepting [data-cart-drawer],
+.popsi-cart-intercepting .mini-cart,
+.popsi-cart-intercepting .cart-sidebar,
+.popsi-cart-intercepting .slideout-cart,
+.popsi-cart-intercepting .ajax-cart,
+.popsi-cart-intercepting .shopify-section-header__cart,
+.popsi-cart-intercepting .site-header__cart-drawer {
+  display: none !important;
+}
+
 popsi-cart-drawer *,
 popsi-cart-drawer *::before,
 popsi-cart-drawer *::after,
